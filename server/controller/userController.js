@@ -107,3 +107,84 @@ export const getUser = catchAsyncErrors(async(req, res, next) =>{
         user,
     });
 });
+
+export const updateProfile = catchAsyncErrors(async (req, res, next) =>{
+    const newUserdata = {
+        fullName: req.body.fullName,
+        email: req.body.email,
+        phone: req.body.phone,
+        aboutMe: req.body.aboutMe,
+        portfolioURL: req.body.portfolioURL,
+        gitHubURL: req.body.gitHubURL,
+        linkedInURL: req.body.linkedInURL,
+
+    };
+    if(req.files && req.files.avatar){
+        const avatar = req.files.avatar;
+        const user = await User.findById(req.user.id);
+        const profileImageId = user.avatar.public_id;
+        await cloudinary.uploader.destroy(profileImageId);
+        const cloudinaryResponse = await cloudinary.uploader.upload(
+        avatar.tempFilePath,
+        { folder: "AVATARS" }
+    );
+    newUserdata.avatar ={
+        public_id: cloudinaryResponse.public_id,
+        url: cloudinaryResponse.secure_url,
+    };
+}
+    
+    if(req.files && req.files.resume){
+        const resume = req.files.resume;
+        const user = await User.findById(req.user.id);
+        const resumeId = user.resume.public_id;
+        await cloudinary.uploader.destroy(resumeId);
+        const cloudinaryResponse = await cloudinary.uploader.upload(
+        resume.tempFilePath,
+        { folder: "MY_RESUME" }
+    );
+    newUserdata.resume = {
+        public_id: cloudinaryResponse.public_id,
+        url: cloudinaryResponse.secure_url,
+    };
+
+}
+
+const user = await User.findByIdAndUpdate(req.user.id, newUserdata, {
+    new: true,
+    runValidators: true,
+    useFindAndModify: false,
+
+    });
+    res.status(200).json({
+        success: true,
+        message: "Profile Updated!",
+        user,
+    });
+});
+
+export const updatePassword = catchAsyncErrors(async(req, res, next) =>{
+    const { currentPassword, newPassword, confirmNewPassword } = req.body;
+    if(!currentPassword || !newPassword || !confirmNewPassword){
+        return next(new ErrorHandler("Please Fill All Fields.", 400));
+    }
+    const user = await User.findById(req.user.id).select("+password");
+    const isPasswordMatched = await user.comparePassword(currentPassword);
+    if(!isPasswordMatched){
+        return next(new ErrorHandler("Incorrect Current Password", 400));
+
+    }
+    if(newPassword !== confirmNewPassword){
+        return next(
+            new ErrorHandler(
+                "New Password and Confirm New Password do not Match." , 400
+            )
+        );
+    }
+    user.password = newPassword;
+    await  user.save();
+    res.status(200).json({
+        success: true,
+        message: "Password Updated!"
+    });
+});
