@@ -4,6 +4,7 @@ import {User} from "../models/userSchema.js"
 import { generateToken } from "../utils/jwtToken.js";
 import ErrorHandler from "../middleware/error.js";
 import dotenv from "dotenv"
+import { Message } from "../models/messageSchema.js";
 
 dotenv.config({path: "./config/config.env"})
 
@@ -85,4 +86,24 @@ export const login = catchAsyncErrors(async(req, res, next) => {
 
     }
     generateToken(user, "Logged In", 200, res)
+});
+
+export const logout = catchAsyncErrors(async(req, res, next) =>{
+    res.status(200).cookie("token","", {
+        expires: new Date(Date.now()),
+        httpOnly: true,
+    })
+    .json({
+        success: true,
+        message: "Logged Out"
+    });
+
+});
+
+export const getUser = catchAsyncErrors(async(req, res, next) =>{
+    const user = await User.findById(req.user.id);
+    res.status(200).json({
+        success: true, 
+        user,
+    });
 });
